@@ -35,14 +35,21 @@
         h1 {
             font-size: 1.25rem;
             margin-top: 0;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
             text-align: center;
             color: var(--primary-color);
         }
 
+        .instruction {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
         textarea {
             width: 100%;
-            height: 180px;
+            height: 160px;
             padding: 12px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -50,24 +57,24 @@
             line-height: 1.5;
             box-sizing: border-box;
             resize: vertical;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .controls {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
 
         .control-group {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
         }
 
         label {
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-weight: 600;
             color: #64748b;
         }
@@ -76,8 +83,26 @@
             padding: 8px;
             border: 1px solid var(--border-color);
             border-radius: 6px;
-            font-size: 0.95rem;
+            font-size: 0.9rem;
             background-color: #fff;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #334155;
+            cursor: pointer;
+        }
+
+        .checkbox-group input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary-color);
+            cursor: pointer;
         }
 
         .btn-group {
@@ -119,14 +144,27 @@
             min-height: 1.2em;
         }
 
-        .sentence-display {
+        .display-box {
             margin-top: 16px;
-            padding: 12px;
+            padding: 14px;
             background: #f1f5f9;
             border-radius: 8px;
-            font-size: 1.1rem;
+            min-height: 4em;
+        }
+
+        .sentence-en {
+            font-size: 1.15rem;
+            font-weight: bold;
             line-height: 1.4;
-            min-height: 3em;
+            color: #1e293b;
+            margin-bottom: 6px;
+            word-break: break-word;
+        }
+
+        .sentence-ja {
+            font-size: 0.95rem;
+            color: #475569;
+            line-height: 1.4;
             word-break: break-word;
         }
     </style>
@@ -135,8 +173,11 @@
 
 <div class="container">
     <h1>English Speech Player</h1>
+    <div class="instruction">
+        【入力のコツ】英語の行のすぐ下に、対応する日本語訳の行を交互に入力してください。<br>例：<br>Hello, how are you?<br>こんにちは、お元気ですか？
+    </div>
     
-    <textarea id="text-input" placeholder="ここに英文を入力してください..."></textarea>
+    <textarea id="text-input" placeholder="English text...&#10;日本語訳..."></textarea>
 
     <div class="controls">
         <div class="control-group">
@@ -145,7 +186,7 @@
         </div>
 
         <div class="control-group">
-            <label for="pause-mode">文間のポーズ設定</label>
+            <label for="pause-mode">文間のポーズ</label>
             <select id="pause-mode">
                 <option value="none">ポーズなし (0秒)</option>
                 <option value="short">ポーズあり (短め)</option>
@@ -153,7 +194,24 @@
                 <option value="long">ポーズあり (長め)</option>
             </select>
         </div>
+
+        <div class="control-group">
+            <label for="loop-mode">再生回数</label>
+            <select id="loop-mode">
+                <option value="1">1回</option>
+                <option value="2">2回</option>
+                <option value="3" selected>3回</option>
+                <option value="4">4回</option>
+                <option value="5">5回</option>
+                <option value="infinite">無限ループ (永遠)</option>
+            </select>
+        </div>
     </div>
+
+    <label class="checkbox-group">
+        <input type="checkbox" id="show-ja-toggle" checked>
+        日本語訳を画面に表示する
+    </label>
 
     <div class="btn-group">
         <button id="play-btn" class="btn-primary">再生</button>
@@ -161,7 +219,11 @@
     </div>
 
     <div id="status" class="status">準備完了</div>
-    <div id="current-sentence" class="sentence-display">再生される文章がここに表示されます</div>
+    
+    <div class="display-box">
+        <div id="current-en" class="sentence-en">再生される英文がここに表示されます</div>
+        <div id="current-ja" class="sentence-ja">日本語訳がここに表示されます</div>
+    </div>
 </div>
 
 <script>
@@ -171,55 +233,103 @@
     const rateInput = document.getElementById('rate');
     const rateVal = document.getElementById('rate-val');
     const pauseMode = document.getElementById('pause-mode');
+    const loopMode = document.getElementById('loop-mode');
+    const showJaToggle = document.getElementById('show-ja-toggle');
     const statusDiv = document.getElementById('status');
-    const currentSentenceDiv = document.getElementById('current-sentence');
+    const currentEnDiv = document.getElementById('current-en');
+    const currentJaDiv = document.getElementById('current-ja');
 
-    let sentences = [];
+    let pairs = []; // [{en: "...", ja: "..."}]
     let currentIndex = 0;
+    let currentRepeatCount = 1;
     let isPlaying = false;
     let currentUtterance = null;
     let pauseTimeout = null;
+    let wakeLock = null; // 画面スリープ防止用オブジェクト
 
     rateInput.addEventListener('input', () => {
         rateVal.textContent = rateInput.value;
     });
 
-    function splitText(text) {
-        return text.split(/(?<=[.!?])\s+|\n+/).filter(s => s.trim().length > 0);
+    // 画面スリープの有効化／解除処理
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+            } catch (err) {
+                console.warn('Wake Lock Error:', err);
+            }
+        }
     }
 
-    // 単語数に応じた可変ポーズ時間の計算 (ミリ秒)
+    function releaseWakeLock() {
+        if (wakeLock !== null) {
+            wakeLock.release().then(() => {
+                wakeLock = null;
+            });
+        }
+    }
+
+    // 英語と日本語のペアを解析する関数
+    function parseText(text) {
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        let result = [];
+        
+        for (let i = 0; i < lines.length; i += 2) {
+            let en = lines[i];
+            let ja = (i + 1 < lines.length) ? lines[i + 1] : "";
+            result.push({ en: en, ja: ja });
+        }
+        return result;
+    }
+
     function calculatePauseDuration(sentence) {
         const mode = pauseMode.value;
-        if (mode === 'none') return 0; // ポーズなし
+        if (mode === 'none') return 0;
 
-        // 単語数をカウント（空白区切り）
         const wordCount = sentence.trim().split(/\s+/).length;
-        
-        // 1単語あたり約300ミリ秒（0.3秒）のポーズを基本とする
         let basePause = wordCount * 300;
-        
-        // 最低でも1秒は確保、最長でも15秒に抑える
         basePause = Math.max(1000, Math.min(basePause, 15000));
 
-        // モードによる倍率調整
         if (mode === 'short') return basePause * 0.8;
         if (mode === 'long') return basePause * 1.3;
-        return basePause; // normal
+        return basePause;
     }
 
     function speakNext() {
-        if (!isPlaying || currentIndex >= sentences.length) {
-            stopPlayback();
-            statusDiv.textContent = "再生終了";
-            return;
+        if (!isPlaying) return;
+
+        if (currentIndex >= pairs.length) {
+            const maxLoop = loopMode.value;
+            if (maxLoop === 'infinite') {
+                currentIndex = 0;
+            } else {
+                if (currentRepeatCount < parseInt(maxLoop)) {
+                    currentRepeatCount++;
+                    currentIndex = 0;
+                } else {
+                    stopPlayback();
+                    statusDiv.textContent = "再生終了";
+                    return;
+                }
+            }
         }
 
-        const sentence = sentences[currentIndex].trim();
-        currentSentenceDiv.textContent = sentence;
-        statusDiv.textContent = `再生中 (${currentIndex + 1}/${sentences.length})`;
+        const currentPair = pairs[currentIndex];
+        currentEnDiv.textContent = currentPair.en;
+        
+        if (showJaToggle.checked && currentPair.ja) {
+            currentJaDiv.textContent = currentPair.ja;
+            currentJaDiv.style.display = 'block';
+        } else {
+            currentJaDiv.textContent = "";
+            currentJaDiv.style.display = 'none';
+        }
 
-        currentUtterance = new SpeechSynthesisUtterance(sentence);
+        const loopInfo = loopMode.value === 'infinite' ? '∞' : `${currentRepeatCount}/${loopMode.value}回`;
+        statusDiv.textContent = `再生中 [周回: ${loopInfo}] (文: ${currentIndex + 1}/${pairs.length})`;
+
+        currentUtterance = new SpeechSynthesisUtterance(currentPair.en);
         currentUtterance.lang = 'en-US';
         currentUtterance.rate = parseFloat(rateInput.value);
 
@@ -227,12 +337,12 @@
             if (!isPlaying) return;
             currentIndex++;
             
-            const pauseMs = calculatePauseDuration(sentence);
+            const pauseMs = calculatePauseDuration(currentPair.en);
             if (pauseMs === 0) {
                 speakNext();
             } else {
                 const secondsText = (pauseMs / 1000).toFixed(1);
-                statusDiv.textContent = `ポーズ中 (${secondsText}秒)... (${currentIndex}/${sentences.length})`;
+                statusDiv.textContent = `ポーズ中 (${secondsText}秒)...`;
                 pauseTimeout = setTimeout(speakNext, pauseMs);
             }
         };
@@ -248,22 +358,28 @@
         window.speechSynthesis.speak(currentUtterance);
     }
 
-    playBtn.addEventListener('click', () => {
+    playBtn.addEventListener('click', async () => {
         const text = textInput.value;
         if (!text.trim()) return;
 
         window.speechSynthesis.cancel();
         clearTimeout(pauseTimeout);
 
-        sentences = splitText(text);
-        if (sentences.length === 0) return;
+        pairs = parseText(text);
+        if (pairs.length === 0) return;
 
         currentIndex = 0;
+        currentRepeatCount = 1;
         isPlaying = true;
 
         playBtn.disabled = true;
         stopBtn.disabled = false;
         pauseMode.disabled = true;
+        loopMode.disabled = true;
+        textInput.disabled = true;
+
+        // 再生開始時にスリープ防止を適用
+        await requestWakeLock();
 
         speakNext();
     });
@@ -273,18 +389,37 @@
         window.speechSynthesis.cancel();
         clearTimeout(pauseTimeout);
 
+        // 停止時にスリープ防止を解除
+        releaseWakeLock();
+
         playBtn.disabled = false;
         stopBtn.disabled = true;
         pauseMode.disabled = false;
+        loopMode.disabled = false;
+        textInput.disabled = false;
 
         statusDiv.textContent = "停止中";
     }
 
     stopBtn.addEventListener('click', stopPlayback);
 
+    showJaToggle.addEventListener('change', () => {
+        if (pairs.length > 0 && currentIndex < pairs.length) {
+            const currentPair = pairs[currentIndex];
+            if (showJaToggle.checked && currentPair.ja) {
+                currentJaDiv.textContent = currentPair.ja;
+                currentJaDiv.style.display = 'block';
+            } else {
+                currentJaDiv.textContent = "";
+                currentJaDiv.style.display = 'none';
+            }
+        }
+    });
+
     window.addEventListener('beforeunload', () => {
         window.speechSynthesis.cancel();
         clearTimeout(pauseTimeout);
+        releaseWakeLock();
     });
 </script>
 
