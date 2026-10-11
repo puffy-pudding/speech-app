@@ -11,7 +11,6 @@
             --card-bg: #ffffff;
             --text-color: #1e293b;
             --border-color: #e2e8f0;
-            --accent-color: #f59e0b;
         }
 
         body {
@@ -50,7 +49,7 @@
 
         textarea {
             width: 100%;
-            height: 140px;
+            height: 160px;
             padding: 12px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -88,20 +87,14 @@
             background-color: #fff;
         }
 
-        .options-row {
+        .checkbox-group {
             display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
+            align-items: center;
+            gap: 8px;
             margin-bottom: 16px;
             font-size: 0.9rem;
             font-weight: 600;
             color: #334155;
-        }
-
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
             cursor: pointer;
         }
 
@@ -149,14 +142,14 @@
             text-align: center;
             color: #64748b;
             min-height: 1.2em;
-            margin-bottom: 12px;
         }
 
         .display-box {
+            margin-top: 16px;
             padding: 14px;
             background: #f1f5f9;
             border-radius: 8px;
-            margin-bottom: 16px;
+            min-height: 4em;
         }
 
         .sentence-en {
@@ -164,84 +157,15 @@
             font-weight: bold;
             line-height: 1.4;
             color: #1e293b;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
             word-break: break-word;
         }
 
         .sentence-ja {
-            font-size: 0.92rem;
+            font-size: 0.95rem;
             color: #475569;
             line-height: 1.4;
             word-break: break-word;
-        }
-
-        /* センテンス一覧（リスト）のスタイル */
-        .playlist-container {
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            max-height: 250px;
-            overflow-y: auto;
-            background: #fff;
-        }
-
-        .playlist-item {
-            padding: 10px 12px;
-            border-bottom: 1px solid #f1f5f9;
-            display: flex;
-            align-items: flex-start;
-            gap: 8px;
-            cursor: pointer;
-            transition: background-color 0.15s;
-        }
-
-        .playlist-item:last-child {
-            border-bottom: none;
-        }
-
-        .playlist-item:hover {
-            background-color: #f8fafc;
-        }
-
-        .playlist-item.active {
-            background-color: #dbeafe;
-            border-left: 4px solid var(--primary-color);
-        }
-
-        .playlist-content {
-            flex: 1;
-        }
-
-        .playlist-en {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #1e293b;
-        }
-
-        .playlist-ja {
-            font-size: 0.82rem;
-            color: #64748b;
-            margin-top: 2px;
-        }
-
-        .bookmark-btn {
-            background: none;
-            border: none;
-            font-size: 1.2rem;
-            cursor: pointer;
-            color: #cbd5e1;
-            padding: 0 4px;
-            flex: none;
-        }
-
-        .bookmark-btn.bookmarked {
-            color: var(--accent-color);
-        }
-
-        .playlist-title {
-            font-size: 0.85rem;
-            font-weight: bold;
-            color: #64748b;
-            margin-bottom: 6px;
         }
     </style>
 </head>
@@ -250,10 +174,10 @@
 <div class="container">
     <h1>English Speech Player</h1>
     <div class="instruction">
-        【使い方】英語のみ、または「英語の行のすぐ下に日本語訳」を交互に入力してください。（自動保存されます）
+        【入力のコツ】英語の行のすぐ下に、対応する日本語訳の行を交互に入力してください。<br>例：<br>Hello, how are you?<br>こんにちは、お元気ですか？
     </div>
     
-    <textarea id="text-input" placeholder="ここに英文を入力してください...&#10;日本語訳..."></textarea>
+    <textarea id="text-input" placeholder="English text...&#10;日本語訳..."></textarea>
 
     <div class="controls">
         <div class="control-group">
@@ -271,7 +195,7 @@
             </select>
         </div>
 
-        <div class="control-group" style="grid-column: span 2;">
+        <div class="control-group">
             <label for="loop-mode">再生回数</label>
             <select id="loop-mode">
                 <option value="1">1回</option>
@@ -284,16 +208,10 @@
         </div>
     </div>
 
-    <div class="options-row">
-        <label class="checkbox-group">
-            <input type="checkbox" id="show-ja-toggle" checked>
-            日本語訳を表示する
-        </label>
-        <label class="checkbox-group">
-            <input type="checkbox" id="bookmark-only-toggle">
-            ★ブックマークのみ再生
-        </label>
-    </div>
+    <label class="checkbox-group">
+        <input type="checkbox" id="show-ja-toggle" checked>
+        日本語訳を画面に表示する
+    </label>
 
     <div class="btn-group">
         <button id="play-btn" class="btn-primary">再生</button>
@@ -304,12 +222,7 @@
     
     <div class="display-box">
         <div id="current-en" class="sentence-en">再生される英文がここに表示されます</div>
-        <div id="current-ja" class="sentence-ja" style="display: none;">日本語訳がここに表示されます</div>
-    </div>
-
-    <div class="playlist-title">文章一覧（タップしてその文から再生・☆でブックマーク）</div>
-    <div id="playlist-container" class="playlist-container">
-        <!-- 動的にリストが生成されます -->
+        <div id="current-ja" class="sentence-ja">日本語訳がここに表示されます</div>
     </div>
 </div>
 
@@ -322,171 +235,23 @@
     const pauseMode = document.getElementById('pause-mode');
     const loopMode = document.getElementById('loop-mode');
     const showJaToggle = document.getElementById('show-ja-toggle');
-    const bookmarkOnlyToggle = document.getElementById('bookmark-only-toggle');
     const statusDiv = document.getElementById('status');
     const currentEnDiv = document.getElementById('current-en');
     const currentJaDiv = document.getElementById('current-ja');
-    const playlistContainer = document.getElementById('playlist-container');
 
-    let allPairs = []; // [{en, ja, bookmarked}]
-    let activePairs = []; // 再生対象（通常全件 or ブックマークのみ）
+    let pairs = []; // [{en: "...", ja: "..."}]
     let currentIndex = 0;
     let currentRepeatCount = 1;
     let isPlaying = false;
     let currentUtterance = null;
     let pauseTimeout = null;
-    let wakeLock = null;
-
-    // 1. ローカルストレージからの読み込みと保存
-    const STORAGE_KEY = 'english_player_text';
-    const BOOKMARK_KEY = 'english_player_bookmarks';
-
-    window.addEventListener('DOMContentLoaded', () => {
-        const savedText = localStorage.getItem(STORAGE_KEY);
-        if (savedText) {
-            textInput.value = savedText;
-        }
-        updatePlaylistPreview();
-    });
-
-    textInput.addEventListener('input', () => {
-        localStorage.setItem(STORAGE_KEY, textInput.value);
-        updatePlaylistPreview();
-    });
+    let wakeLock = null; // 画面スリープ防止用オブジェクト
 
     rateInput.addEventListener('input', () => {
         rateVal.textContent = rateInput.value;
     });
 
-    // ブックマークデータの保存・読み込み
-    function loadBookmarks() {
-        try {
-            return JSON.parse(localStorage.getItem(BOOKMARK_KEY)) || [];
-        } catch {
-            return [];
-        }
-    }
-
-    function saveBookmarks(bookmarks) {
-        localStorage.setItem(BOOKMARK_KEY, JSON.stringify(bookmarks));
-    }
-
-    // テキスト解析
-    function parseText() {
-        const text = textInput.value;
-        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
-        let result = [];
-        let bookmarks = loadBookmarks();
-        
-        let i = 0;
-        while (i < lines.length) {
-            let currentLine = lines[i];
-            let nextLine = (i + 1 < lines.length) ? lines[i + 1] : "";
-            
-            let hasJapanese = /[ひらがなカタカナ漢字]/.test(nextLine) || /[ぁ-んァ-ンー一-龯]/.test(nextLine);
-
-            let en = "";
-            let ja = "";
-
-            if (hasJapanese) {
-                en = currentLine;
-                ja = nextLine;
-                i += 2;
-            } else {
-                en = currentLine;
-                ja = "";
-                i += 1;
-            }
-
-            // ブックマーク状態の復元 (英文が一致するものがあれば引き継ぐ)
-            let isBookmarked = bookmarks.includes(en);
-
-            // 英文の中に複数文ある場合の分割
-            const subSentences = en.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
-            if (subSentences.length > 1 && !hasJapanese) {
-                subSentences.forEach((sub, idx) => {
-                    result.push({ en: sub, ja: idx === 0 ? ja : "", bookmarked: bookmarks.includes(sub) });
-                });
-            } else {
-                result.push({ en: en, ja: ja, bookmarked: isBookmarked });
-            }
-        }
-        return result;
-    }
-
-    // プレイリストの見た目を更新
-    function updatePlaylistPreview() {
-        allPairs = parseText();
-        playlistContainer.innerHTML = '';
-
-        if (allPairs.length === 0) {
-            playlistContainer.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align:center;">英文を入力するとここにリストが表示されます</div>';
-            return;
-        }
-
-        allPairs.forEach((pair, index) => {
-            const item = document.createElement('div');
-            item.className = `playlist-item ${isPlaying && activePairs[currentIndex] === pair ? 'active' : ''}`;
-            
-            // タップでその文から再生
-            item.addEventListener('click', (e) => {
-                if (e.target.closest('.bookmark-btn')) return; // 星ボタンのクリックは除外
-                jumpToSentence(index);
-            });
-
-            const content = document.createElement('div');
-            content.className = 'playlist-content';
-
-            const enDiv = document.createElement('div');
-            enDiv.className = 'playlist-en';
-            enDiv.textContent = `${index + 1}. ${pair.en}`;
-            content.appendChild(enDiv);
-
-            if (pair.ja) {
-                const jaDiv = document.createElement('div');
-                jaDiv.className = 'playlist-ja';
-                jaDiv.textContent = pair.ja;
-                content.appendChild(jaDiv);
-            }
-
-            const bmBtn = document.createElement('button');
-            bmBtn.className = `bookmark-btn ${pair.bookmarked ? 'bookmarked' : ''}`;
-            bmBtn.innerHTML = pair.bookmarked ? '★' : '☆';
-            bmBtn.title = "ブックマーク";
-            bmBtn.addEventListener('click', () => {
-                toggleBookmark(pair.en);
-            });
-
-            item.appendChild(content);
-            item.appendChild(bmBtn);
-            playlistContainer.appendChild(item);
-        });
-    }
-
-    function toggleBookmark(enText) {
-        let bookmarks = loadBookmarks();
-        if (bookmarks.includes(enText)) {
-            bookmarks = bookmarks.filter(b => b !== enText);
-        } else {
-            bookmarks.push(enText);
-        }
-        saveBookmarks(bookmarks);
-        updatePlaylistPreview();
-    }
-
-    function calculatePauseDuration(sentence) {
-        const mode = pauseMode.value;
-        if (mode === 'none') return 0;
-
-        const wordCount = sentence.trim().split(/\s+/).length;
-        let basePause = wordCount * 300;
-        basePause = Math.max(1000, Math.min(basePause, 15000));
-
-        if (mode === 'short') return basePause * 0.8;
-        if (mode === 'long') return basePause * 1.3;
-        return basePause;
-    }
-
+    // 画面スリープの有効化／解除処理
     async function requestWakeLock() {
         if ('wakeLock' in navigator) {
             try {
@@ -505,10 +270,36 @@
         }
     }
 
+    // 英語と日本語のペアを解析する関数
+    function parseText(text) {
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        let result = [];
+        
+        for (let i = 0; i < lines.length; i += 2) {
+            let en = lines[i];
+            let ja = (i + 1 < lines.length) ? lines[i + 1] : "";
+            result.push({ en: en, ja: ja });
+        }
+        return result;
+    }
+
+    function calculatePauseDuration(sentence) {
+        const mode = pauseMode.value;
+        if (mode === 'none') return 0;
+
+        const wordCount = sentence.trim().split(/\s+/).length;
+        let basePause = wordCount * 300;
+        basePause = Math.max(1000, Math.min(basePause, 15000));
+
+        if (mode === 'short') return basePause * 0.8;
+        if (mode === 'long') return basePause * 1.3;
+        return basePause;
+    }
+
     function speakNext() {
         if (!isPlaying) return;
 
-        if (currentIndex >= activePairs.length) {
+        if (currentIndex >= pairs.length) {
             const maxLoop = loopMode.value;
             if (maxLoop === 'infinite') {
                 currentIndex = 0;
@@ -524,7 +315,7 @@
             }
         }
 
-        const currentPair = activePairs[currentIndex];
+        const currentPair = pairs[currentIndex];
         currentEnDiv.textContent = currentPair.en;
         
         if (showJaToggle.checked && currentPair.ja) {
@@ -535,11 +326,8 @@
             currentJaDiv.style.display = 'none';
         }
 
-        // プレイリストの選択ハイライトを更新
-        updateActivePlaylistUI(currentPair);
-
         const loopInfo = loopMode.value === 'infinite' ? '∞' : `${currentRepeatCount}/${loopMode.value}回`;
-        statusDiv.textContent = `再生中 [周回: ${loopInfo}] (文: ${currentIndex + 1}/${activePairs.length})`;
+        statusDiv.textContent = `再生中 [周回: ${loopInfo}] (文: ${currentIndex + 1}/${pairs.length})`;
 
         currentUtterance = new SpeechSynthesisUtterance(currentPair.en);
         currentUtterance.lang = 'en-US';
@@ -570,63 +358,15 @@
         window.speechSynthesis.speak(currentUtterance);
     }
 
-    function updateActivePlaylistUI(activePair) {
-        const items = playlistContainer.querySelectorAll('.playlist-item');
-        items.forEach((item, idx) => {
-            if (activePairs[currentIndex] === allPairs[idx]) {
-                item.classList.add('active');
-                item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } else {
-                item.classList.remove('active');
-            }
-        });
-    }
-
-    // 特定の文をタップしたときのジャンプ再生
-    function jumpToSentence(allPairsIndex) {
-        const targetPair = allPairs[allPairsIndex];
-        
-        // 現在の再生モード（通常 or ブックマークのみ）に合わせて配列を再構築
-        prepareActivePairs();
-
-        const targetActiveIndex = activePairs.indexOf(targetPair);
-        if (targetActiveIndex === -1) {
-            // もしブックマークモード中にブックマークされていない文がタップされた場合の配慮
-            if (bookmarkOnlyToggle.checked) {
-                alert("この文はブックマークされていないため、現在の「★ブックマークのみ再生」モードでは再生対象外です。");
-                return;
-            }
-            return;
-        }
+    playBtn.addEventListener('click', async () => {
+        const text = textInput.value;
+        if (!text.trim()) return;
 
         window.speechSynthesis.cancel();
         clearTimeout(pauseTimeout);
 
-        currentIndex = targetActiveIndex;
-        if (!isPlaying) {
-            // 停止中からタップされた場合はそのまま再生を開始する
-            startPlaybackSequence();
-        } else {
-            // 再生中なら即座にその文を読み上げる
-            speakNext();
-        }
-    }
-
-    function prepareActivePairs() {
-        allPairs = parseText();
-        if (bookmarkOnlyToggle.checked) {
-            activePairs = allPairs.filter(p => p.bookmarked);
-        } else {
-            activePairs = [...allPairs];
-        }
-    }
-
-    function startPlaybackSequence() {
-        prepareActivePairs();
-        if (activePairs.length === 0) {
-            alert(bookmarkOnlyToggle.checked ? "ブックマークされた文がありません。" : "再生する英文がありません。");
-            return;
-        }
+        pairs = parseText(text);
+        if (pairs.length === 0) return;
 
         currentIndex = 0;
         currentRepeatCount = 1;
@@ -637,20 +377,19 @@
         pauseMode.disabled = true;
         loopMode.disabled = true;
         textInput.disabled = true;
-        bookmarkOnlyToggle.disabled = true;
 
-        requestWakeLock();
+        // 再生開始時にスリープ防止を適用
+        await requestWakeLock();
+
         speakNext();
-    }
-
-    playBtn.addEventListener('click', () => {
-        startPlaybackSequence();
     });
 
     function stopPlayback() {
         isPlaying = false;
         window.speechSynthesis.cancel();
         clearTimeout(pauseTimeout);
+
+        // 停止時にスリープ防止を解除
         releaseWakeLock();
 
         playBtn.disabled = false;
@@ -658,17 +397,15 @@
         pauseMode.disabled = false;
         loopMode.disabled = false;
         textInput.disabled = false;
-        bookmarkOnlyToggle.disabled = false;
 
         statusDiv.textContent = "停止中";
-        updatePlaylistPreview(); // ハイライト解除
     }
 
     stopBtn.addEventListener('click', stopPlayback);
 
     showJaToggle.addEventListener('change', () => {
-        if (activePairs.length > 0 && currentIndex < activePairs.length) {
-            const currentPair = activePairs[currentIndex];
+        if (pairs.length > 0 && currentIndex < pairs.length) {
+            const currentPair = pairs[currentIndex];
             if (showJaToggle.checked && currentPair.ja) {
                 currentJaDiv.textContent = currentPair.ja;
                 currentJaDiv.style.display = 'block';
