@@ -174,10 +174,10 @@
 <div class="container">
     <h1>English Speech Player</h1>
     <div class="instruction">
-        【入力のコツ】英語の行のすぐ下に、対応する日本語訳の行を交互に入力してください。<br>例：<br>Hello, how are you?<br>こんにちは、お元気ですか？
+        【使い方】英語のみ、または「英語の行のすぐ下に日本語訳」を交互に入力しても動作します。<br>例（訳ありの場合）：<br>Hello, how are you?<br>こんにちは、お元気ですか？
     </div>
     
-    <textarea id="text-input" placeholder="English text...&#10;日本語訳..."></textarea>
+    <textarea id="text-input" placeholder="ここに英文を入力してください..."></textarea>
 
     <div class="controls">
         <div class="control-group">
@@ -222,7 +222,7 @@
     
     <div class="display-box">
         <div id="current-en" class="sentence-en">再生される英文がここに表示されます</div>
-        <div id="current-ja" class="sentence-ja">日本語訳がここに表示されます</div>
+        <div id="current-ja" class="sentence-ja" style="display: none;">日本語訳がここに表示されます</div>
     </div>
 </div>
 
@@ -239,19 +239,18 @@
     const currentEnDiv = document.getElementById('current-en');
     const currentJaDiv = document.getElementById('current-ja');
 
-    let pairs = []; // [{en: "...", ja: "..."}]
+    let pairs = []; 
     let currentIndex = 0;
     let currentRepeatCount = 1;
     let isPlaying = false;
     let currentUtterance = null;
     let pauseTimeout = null;
-    let wakeLock = null; // 画面スリープ防止用オブジェクト
+    let wakeLock = null;
 
     rateInput.addEventListener('input', () => {
         rateVal.textContent = rateInput.value;
     });
 
-    // 画面スリープの有効化／解除処理
     async function requestWakeLock() {
         if ('wakeLock' in navigator) {
             try {
@@ -270,15 +269,43 @@
         }
     }
 
-    // 英語と日本語のペアを解析する関数
+    // テキスト解析（英語のみ、または 英語+日本語の交互入力の両方に対応）
     function parseText(text) {
         const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
         let result = [];
         
-        for (let i = 0; i < lines.length; i += 2) {
-            let en = lines[i];
-            let ja = (i + 1 < lines.length) ? lines[i + 1] : "";
-            result.push({ en: en, ja: ja });
+        // 英語の文（. ! ? や改行など）できれいに分割されているかを判定
+        // 各行が「アルファベットを含むか」で英語行と日本語行を賢く判別する
+        let i = 0;
+        while (i < lines.length) {
+            let currentLine = lines[i];
+            
+            // もし英語の文章の中にピリオドが無く、次の行とペアになっている形式の場合
+            let nextLine = (i + 1 < lines.length) ? lines[i + 1] : "";
+            
+            // 判定：次の行が日本語（ひらがな・カタカナ・漢字を含む）っぽい場合、あるいは交互入力のルールに従う場合
+            // ここではシンプルに、ユーザーが「英語のみ」を入れた場合でも1行ずつ、または記号で分割できるようにする
+            // ユーザーが「英語の行」「日本語の行」を交互に入れていると仮定しつつ、日本語が無い単独の行にも対応する
+            
+            // 日本語判定（簡易）：ひらがな・カタカナ・漢字が含まれるか
+            const hasJapanese = /[ひらがなカタカナ漢字]/.test(nextLine) || /[ぁ-んァ-ンー一-龯]/.test(nextLine);
+
+            if (hasJapanese) {
+                result.push({ en: currentLine, ja: nextLine });
+                i += 2;
+            } else {
+                // 日本語がない場合は、この行自体を英語として扱い、次へ進む
+                // さらに、一つの行にピリオド区切りで複数の英文がある場合も想定してピリオドで細かく割る
+                const subSentences = currentLine.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+                if (subSentences.length > 1) {
+                    subSentences.forEach(sub => {
+                        result.push({ en: sub, ja: "" });
+                    });
+                } else {
+                    result.push({ en: currentLine, ja: "" });
+                }
+                i += 1;
+            }
         }
         return result;
     }
@@ -378,9 +405,7 @@
         loopMode.disabled = true;
         textInput.disabled = true;
 
-        // 再生開始時にスリープ防止を適用
         await requestWakeLock();
-
         speakNext();
     });
 
@@ -388,8 +413,6 @@
         isPlaying = false;
         window.speechSynthesis.cancel();
         clearTimeout(pauseTimeout);
-
-        // 停止時にスリープ防止を解除
         releaseWakeLock();
 
         playBtn.disabled = false;
